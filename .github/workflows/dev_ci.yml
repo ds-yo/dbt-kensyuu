@@ -1,0 +1,48 @@
+name: '[CI] for development'
+
+on:
+  # main以外に向けたpull requestの作成時/push時に実行
+  pull_request:
+    branches:
+      - '**'        # matches every branch
+      - '!main'   # excludes main
+  # CD実行時に呼び出される
+  workflow_call:
+    secrets:
+      SNOWFLAKE_ACCOUNT:
+        required: true
+      SNOWSQL_USER:
+        required: true
+      SNOWSQL_PWD:
+        required: true
+jobs:
+  check_lint:
+    name: Run SQLFluff linter
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 99_answer/chura_training
+    # 各ユーザごとに対象のSnowflake環境を用いる
+    environment: ${{ github.actor }}-env
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      DBT_DB: ${{ vars.DBT_DB }}
+      DBT_SNOWFLAKE_ROLE: ${{ vars.DBT_SNOWFLAKE_ROLE }}
+      DBT_SCHEMA: ${{ vars.DBT_SCHEMA }}
+      SNOWSQL_USER: ${{ secrets.SNOWSQL_USER }}
+      SNOWSQL_PWD: ${{ secrets.SNOWSQL_PWD }}
+      DBT_SNOWFLAKE_WH: ${{ vars.DBT_SNOWFLAKE_WH }}
+    steps:
+      - uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: "3.9"
+      - name: upgrade pip
+        run: pip install --upgrade pip
+      - name: Install packages
+      # requirements.txtが存在するディレクトリに移動して実行
+        run: cd ../.. && pip install -r requirements.txt
+      - name: Install dependencies
+        run: dbt deps
+      - name: Lint project
+        run: sqlfluff lint models/ci_cd_example
