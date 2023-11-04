@@ -1,0 +1,52 @@
+name: '[CI/CD] for development'
+
+on:
+  # 手動実行
+  workflow_dispatch:
+  # PRがclosedになったタイミングで実行される
+  pull_request:
+    types:
+      - closed
+  # vから始まるタグが作成されたタイミングで実行される
+  push:
+    tags:
+      - v*
+jobs:
+  # CI用ワークフローを呼び出し
+  check_lint:
+    # margeされたときのみ実行される（ジョブ単位で設定）
+    # if: github.event.pull_request.merged == true
+    name: Run SQLFluff linter
+    uses: ./.github/workflows/dev_ci.yml
+    secrets: inherit
+  deploy_dbt:
+    needs: check_lint
+    name: Deploy dbt
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 99_answer/chura_training
+    # 各ユーザごとに対象のSnowflake環境を用いる
+    environment: ${{ github.actor }}-env
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      DBT_DB: ${{ vars.DBT_DB }}
+      DBT_SNOWFLAKE_ROLE: ${{ vars.DBT_SNOWFLAKE_ROLE }}
+      DBT_SCHEMA: ${{ vars.DBT_SCHEMA }}
+      SNOWSQL_USER: ${{ secrets.SNOWSQL_USER }}
+      SNOWSQL_PWD: ${{ secrets.SNOWSQL_PWD }}
+      DBT_SNOWFLAKE_WH: ${{ vars.DBT_SNOWFLAKE_WH }}
+    steps:
+      - uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: "3.9"
+      - name: upgrade pip
+        run: "pip install --upgrade pip"
+      - name: Install packages
+      # requirements.txtが存在するディレクトリに移動して実行
+        run: cd ../.. && pip install -r requirements.txt
+      - name: Install dependencies
+        run: dbt deps
+      - name: dbt run
+        run: "dbt run --select models/ci_cd_example"

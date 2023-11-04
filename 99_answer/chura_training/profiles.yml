@@ -1,0 +1,13 @@
+chura_training:
+  outputs:
+    default:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      database: "{{ env_var('DBT_DB') }}"
+      role: "{{ env_var('DBT_SNOWFLAKE_ROLE') }}"
+      schema: "{{ env_var('DBT_SCHEMA') }}"
+      threads: 1
+      user: "{{ env_var('SNOWSQL_USER') }}"
+      password: "{{ env_var('SNOWSQL_PWD') }}"
+      warehouse: "{{ env_var('DBT_SNOWFLAKE_WH') }}"
+  target: default
